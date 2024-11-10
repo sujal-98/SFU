@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SFU</title>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+
+</head>
+<body>
+    <button id="my-button">Start Stream</button>
+    <video autoplay id="video" width="640" height="360" style="border: 1px solid black;"></video>
+
+    <script>
+
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('my-button').onclick = () => {
+                console.log("working");
+                init();
+            }
+        });
+        
+        async function init(){
+            const stream=await navigator.mediaDevices.getUserMedia({video:true})
+            document.getElementById("video").srcObject=stream;
+            const peer=createPeer();
+            stream.getTracks().forEach(track => peer.addTrack(track,stream))
+        }
+        
+        function createPeer() {
+            const peer = new RTCPeerConnection({
+                iceServers: [
+                    {
+                        urls: 'stun:stun.l.google.com:19302'
+                    }
+                ]
+            });
+        
+            peer.onnegotiationneeded = () => handlenegotiation(peer);
+            return peer;
+        }
+        
+        
+        async function handlenegotiation(peer){
+            const offer=await peer.createOffer();
+            await peer.setLocalDescription(offer);
+            const payload={
+                sdp: peer.localDescription
+            }
+            console.log("sending data")
+            const {data}= await axios.post('http://localhost:5000/broadcast', payload);
+            console.log("data sent")
+            const desc=new RTCSessionDescription(data.sdp);
+            peer.setRemoteDescription(desc).catch(e =>  console.log(e));    
+        }
+
+        </script>
+</body>
+</html>
